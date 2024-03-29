@@ -44,10 +44,13 @@ def compress_image(rgb_array):
     - rgb_array: A numpy array of the image in RGB format.
 
     Returns:
-    - A tuple of the encoded image data and the Huffman tree used for encoding.
+    - A tuple of the encoded image data, the Huffman tree used for encoding, and the original image size.
     """
     # Flatten the RGB data and convert to a sequence of values
     flattened = rgb_array.flatten()
+    
+    # Original image size
+    original_size = rgb_array.shape
 
     # Calculate frequency of each value
     frequency = Counter(flattened)
@@ -61,8 +64,8 @@ def compress_image(rgb_array):
     # Encode the image
     encoded_image = encode(flattened, codes)
 
-    # Return encoded data and the tree (for decompression)
-    return encoded_image, root
+    # Return encoded data, the tree (for decompression), and original image size
+    return encoded_image, root, original_size
 
 def serialize_tree(node):
     if node is None:
@@ -71,14 +74,15 @@ def serialize_tree(node):
         return f"1{chr(node.char)}"
     return f"0{serialize_tree(node.left)}{serialize_tree(node.right)}"
 
-def save_compression(output_path, encoded, tree):
+def save_compression(output_path, encoded, tree, original_size):
     serialized_tree = serialize_tree(tree)
     encoded_bytes = int(encoded, 2).to_bytes((len(encoded) + 7) // 8, 'big')
     with open(output_path, 'w') as f:
         json.dump({
             'tree': serialized_tree,
             'encoded': encoded_bytes.hex(),
-            'length': len(encoded)
+            'length': len(encoded),
+            'original_size': original_size
         }, f)
 
 # Placeholder for the decompression function
@@ -92,6 +96,6 @@ if __name__ == "__main__":
     # Example RGB array generation or loading to be replaced with actual image data
     rgb_array = np.random.randint(256, size=(100, 100, 3), dtype=np.uint8)
     
-    encoded, tree = compress_image(rgb_array)
-    save_compression("compressed_image.json", encoded, tree)
+    encoded, tree, original_size = compress_image(rgb_array)
+    save_compression("compressed_image.json", encoded, tree, original_size)
     print("Compression completed and saved.")

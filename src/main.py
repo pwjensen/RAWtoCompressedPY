@@ -1,6 +1,6 @@
 # main.py
 import argparse
-from src.compressor import compress_image
+from src.compressorHUFF import compress_image
 from src.reader import read_raw_image
 
 def main():
