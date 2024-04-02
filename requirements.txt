@@ -3,3 +3,4 @@ pillow
 numpy
 argparse
 PySide2
+django 
