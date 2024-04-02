@@ -2,3 +2,4 @@ rawpy
 pillow
 numpy
 argparse
+PySide2

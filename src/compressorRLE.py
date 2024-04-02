@@ -1,3 +1,5 @@
+from reader import read_raw_image
+
 def run_length_encode(image):
     """Encode a flattened image array using Run-Length Encoding (RLE).
 
@@ -27,12 +29,12 @@ def run_length_encode(image):
 
 # Example usage
 if __name__ == "__main__":
-    import numpy as np
-
+    
+    input_filepath = "assets/Nikon-D610-Shotkit-2.NEF"
     # Creating a simple example image array
-    example_image = np.array([0, 0, 0, 255, 255, 128, 128, 128, 128])
+    rgb_image = read_raw_image(input_filepath)
     
     # Encoding the image
-    encoded_image = run_length_encode(example_image)
+    encoded_image = run_length_encode(rgb_image)
     
     print("Encoded image:", encoded_image)
