@@ -1,6 +1,4 @@
 import rawpy
-import numpy as np
-from PIL import Image
 
 def read_raw_image(filepath):
     """
@@ -19,20 +17,6 @@ def read_raw_image(filepath):
 
     return rgb
 
-"""
-def save_image(rgb_array, output_path):
-    
-    Saves an RGB numpy array as an image file using Pillow.
-
-    Parameters:
-    - rgb_array: numpy array, the RGB image data to save.
-    - output_path: str, the file path where the image will be saved.
-    
-    # Convert the numpy array to a Pillow Image object
-    image = Image.fromarray(rgb_array)
-    # Save the image
-    image.save(output_path)
-"""
 
 if __name__ == "__main__":
     # Example usage:
