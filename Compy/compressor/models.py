@@ -7,6 +7,7 @@ class RawImage(models.Model):
     image = models.ImageField(upload_to='assets/originals/')
     uploaded_at = models.DateTimeField(auto_now_add=True)
 
+
 class CompressedImage(models.Model):
 
     # Encoding formats available to the user 
@@ -22,7 +23,7 @@ class CompressedImage(models.Model):
     }
 
     # Foreign Key to the original image
-    original = models.ForeignKey(OriginalImage, on_delete=models.CASCADE, related_name='compressed_images')
+    original = models.ForeignKey(RawImage, on_delete=models.CASCADE, related_name='compressed_images')
     # Store the compressed image
     compressed_image = models.ImageField(upload_to='images/compressed/')
     # Algorithm used for compression
