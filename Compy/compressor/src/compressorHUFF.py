@@ -1,101 +1,125 @@
 import numpy as np
-from collections import Counter
-import heapq
 import json
+import os
+import rawpy
+from PIL import Image
+from queue import PriorityQueue
 
-class Node:
-    def __init__(self, char, freq):
-        self.char = char
+class HuffmanNode:
+    def __init__(self, value, freq):
+        self.value = value
         self.freq = freq
         self.left = None
         self.right = None
-
+    
     def __lt__(self, other):
         return self.freq < other.freq
 
-def build_tree(frequencies):
-    priority_queue = [Node(char, freq) for char, freq in frequencies.items()]
-    heapq.heapify(priority_queue)
-    while len(priority_queue) > 1:
-        left = heapq.heappop(priority_queue)
-        right = heapq.heappop(priority_queue)
-        merged = Node(None, left.freq + right.freq)
+def build_huffman_tree(frequencies):
+    pq = PriorityQueue()
+    for value in frequencies:
+        pq.put(HuffmanNode(value, frequencies[value]))
+    
+    while pq.qsize() > 1:
+        left = pq.get()
+        right = pq.get()
+        merged = HuffmanNode(None, left.freq + right.freq)
         merged.left = left
         merged.right = right
-        heapq.heappush(priority_queue, merged)
-    return priority_queue[0] if priority_queue else None
+        pq.put(merged)
+    
+    return pq.get()
 
-def generate_codes(node, prefix="", code={}):
+def generate_codes(node, prefix="", code_map={}):
     if node is not None:
-        if node.char is not None:
-            code[node.char] = prefix
-        generate_codes(node.left, prefix + "0", code)
-        generate_codes(node.right, prefix + "1", code)
-    return code
+        if node.value is not None:
+            code_map[node.value] = prefix
+        generate_codes(node.left, prefix + "0", code_map)
+        generate_codes(node.right, prefix + "1", code_map)
+    return code_map
 
-def encode(data, codes):
-    return ''.join(codes[char] for char in data)
+class HuffmanCompression:
+    def __init__(self, file_path):
+        self.file_path = file_path
+        self.shape = None
+        self.compressed_binary = None
+        self.huffman_tree = None
+        self.code_map = {}
 
-def compress_image(rgb_array):
-    """
-    Compresses an RGB image using Huffman coding.
+    def process_input(self):
+        if self.file_path.lower().endswith(('.arw', '.nef', '.cr2', '.dng')):
+            with rawpy.imread(self.file_path) as raw:
+                rgb = raw.postprocess()
+            image_data = np.asarray(rgb, dtype=np.uint8)
+        else:
+            image_data = np.asarray(Image.open(self.file_path), dtype=np.uint8)
+        
+        self.shape = image_data.shape
+        return image_data.flatten()
+
+    def compress(self, image_data):
+        freqs = np.bincount(image_data)
+        frequencies = {byte: freq for byte, freq in enumerate(freqs) if freq > 0}
+
+        self.huffman_tree = build_huffman_tree(frequencies)
+        self.code_map = generate_codes(self.huffman_tree)
+
+        compressed = ''.join(self.code_map[byte] for byte in image_data)
+        self.compressed_binary = compressed
+
+    def save_to_json(self, filename):
+        data = {
+            'code_map': self.code_map,
+            'compressed_binary': self.compressed_binary,
+            'shape': self.shape,
+        }
+        with open(filename, 'w') as f:
+            json.dump(data, f)
+
+    def load_from_json(self, filename):
+        with open(filename, 'r') as f:
+            data = json.load(f)
+        self.compressed_binary = data['compressed_binary']
+        self.code_map = {v: k for k, v in data['code_map'].items()}
+        self.shape = tuple(data['shape'])
+
+    def decompress(self):
+        decompressed_data = []
+        buffer = ""
+        for bit in self.compressed_binary:
+            buffer += bit
+            if buffer in self.code_map:
+                decompressed_data.append(self.code_map[buffer])
+                buffer = ""
+        return np.array(decompressed_data, dtype=np.uint8).reshape(self.shape)
+
+def compare_file_sizes(json_file_path, image_file_path):
+    json_size = os.path.getsize(json_file_path)
+    image_size = os.path.getsize(image_file_path)
+    reduction = image_size - json_size
+    reduction_percentage = (reduction / image_size) * 100
+    print(f"Original Image Size: {image_size} bytes")
+    print(f"Compressed (JSON) Size: {json_size} bytes")
+    print(f"Reduction: {reduction} bytes")
+    print(f"Reduction Percentage: {reduction_percentage:.2f}%")
+
+def main():
+    image_file_path = 'assets/Nikon-D750-Image-Samples-2.jpg'  # Update this path to your RAW image file
+    compressor = HuffmanCompression(image_file_path)
+    image_data = compressor.process_input()
+    compressor.compress(image_data)
     
-    Args:
-    - rgb_array: A numpy array of the image in RGB format.
-
-    Returns:
-    - A tuple of the encoded image data, the Huffman tree used for encoding, and the original image size.
-    """
-    # Flatten the RGB data and convert to a sequence of values
-    flattened = rgb_array.flatten()
+    json_file_path = 'compressed_data.json'
+    compressor.save_to_json(json_file_path)
     
-    # Original image size
-    original_size = rgb_array.shape
+    decompressor = HuffmanCompression(image_file_path)
+    decompressor.load_from_json(json_file_path)
+    decompressed_image = decompressor.decompress()
 
-    # Calculate frequency of each value
-    frequency = Counter(flattened)
+    decompressed_image_pil = Image.fromarray(decompressed_image)
+    decompressed_image_pil.save('decompressed_image.png')
 
-    # Build Huffman Tree
-    root = build_tree(frequency)
+    compare_file_sizes(json_file_path, image_file_path)
 
-    # Generate Huffman Codes
-    codes = generate_codes(root)
-
-    # Encode the image
-    encoded_image = encode(flattened, codes)
-
-    # Return encoded data, the tree (for decompression), and original image size
-    return encoded_image, root, original_size
-
-def serialize_tree(node):
-    if node is None:
-        return ""
-    if node.char is not None:
-        return f"1{chr(node.char)}"
-    return f"0{serialize_tree(node.left)}{serialize_tree(node.right)}"
-
-def save_compression(output_path, encoded, tree, original_size):
-    serialized_tree = serialize_tree(tree)
-    encoded_bytes = int(encoded, 2).to_bytes((len(encoded) + 7) // 8, 'big')
-    with open(output_path, 'w') as f:
-        json.dump({
-            'tree': serialized_tree,
-            'encoded': encoded_bytes.hex(),
-            'length': len(encoded),
-            'original_size': original_size
-        }, f)
-
-# Placeholder for the decompression function
-def decompress_image(input_path):
-    # This function would include loading the compressed data,
-    # reconstructing the Huffman tree, and decoding the image.
-    pass
-
-# Example usage, assuming you have an RGB numpy array `rgb_array`
 if __name__ == "__main__":
-    # Example RGB array generation or loading to be replaced with actual image data
-    rgb_array = np.random.randint(256, size=(100, 100, 3), dtype=np.uint8)
-    
-    encoded, tree, original_size = compress_image(rgb_array)
-    save_compression("compressed_image.json", encoded, tree, original_size)
-    print("Compression completed and saved.")
+    main()
