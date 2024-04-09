@@ -104,7 +104,7 @@ def compare_file_sizes(json_file_path, image_file_path):
     print(f"Reduction Percentage: {reduction_percentage:.2f}%")
 
 def main():
-    image_file_path = 'assets/Nikon-D750-Image-Samples-2.jpg'  # Update this path to your RAW image file
+    image_file_path = 'assets/IMG_9544.CR3'  # Update this path to your RAW image file
     compressor = HuffmanCompression(image_file_path)
     image_data = compressor.process_input()
     compressor.compress(image_data)

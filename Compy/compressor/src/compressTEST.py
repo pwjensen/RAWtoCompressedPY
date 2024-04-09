@@ -1,9 +1,10 @@
 import numpy as np
-import json
-import os
 from PIL import Image
-import heapq  # More efficient priority queue management
-from bitarray import bitarray  # For efficient binary data handling
+import heapq
+from bitarray import bitarray
+import rawpy
+import os
+import pickle
 
 class HuffmanNode:
     def __init__(self, value, freq):
@@ -18,7 +19,6 @@ class HuffmanNode:
 def build_huffman_tree(frequencies):
     heap = [HuffmanNode(value, freq) for value, freq in frequencies.items()]
     heapq.heapify(heap)
-    
     while len(heap) > 1:
         left = heapq.heappop(heap)
         right = heapq.heappop(heap)
@@ -26,13 +26,11 @@ def build_huffman_tree(frequencies):
         merged.left = left
         merged.right = right
         heapq.heappush(heap, merged)
-    
     return heap[0]
 
 def generate_codes(node):
     stack = [(node, "")]
     code_map = {}
-    
     while stack:
         node, code = stack.pop()
         if node is not None:
@@ -40,88 +38,87 @@ def generate_codes(node):
                 code_map[node.value] = code
             stack.append((node.right, code + "1"))
             stack.append((node.left, code + "0"))
-    
     return code_map
 
-class HuffmanCompression:
-    def __init__(self, file_path):
-        self.file_path = file_path
-        self.shape = None
-        self.compressed_binary = bitarray()
-        self.huffman_tree = None
-        self.code_map = {}
+def compress(image_data):
+    freqs = np.bincount(image_data)
+    frequencies = {byte: freq for byte, freq in enumerate(freqs) if freq > 0}
+    huffman_tree = build_huffman_tree(frequencies)
+    code_map = generate_codes(huffman_tree)
+    compressed_binary = bitarray()
+    for byte in image_data:
+        compressed_binary.extend(code_map[byte])
+    return compressed_binary, code_map, image_data.shape
 
-    def process_input(self):
-        image_data = np.asarray(Image.open(self.file_path), dtype=np.uint8)
-        self.shape = image_data.shape
-        return image_data.flatten()
+def decompress(compressed_binary, code_map, shape):
+    inv_code_map = {v: k for k, v in code_map.items()}
+    buffer = bitarray()
+    decompressed_data = []
+    for bit in compressed_binary:
+        buffer.append(bit)
+        if buffer.to01() in inv_code_map:
+            decompressed_data.append(inv_code_map[buffer.to01()])
+            buffer.clear()
+    return np.array(decompressed_data, dtype=np.uint8).reshape(shape)
 
-    def compress(self, image_data):
-        freqs = np.bincount(image_data)
-        frequencies = {byte: freq for byte, freq in enumerate(freqs) if freq > 0}
-        
-        self.huffman_tree = build_huffman_tree(frequencies)
-        self.code_map = generate_codes(self.huffman_tree)
-        
-        for byte in image_data:
-            self.compressed_binary.extend(self.code_map[byte])
+def process_input(file_path):
+    if file_path.lower().endswith(('.arw', '.nef', '.cr2', '.dng')):
+        with rawpy.imread(file_path) as raw:
+            rgb = raw.postprocess()
+        image_data = np.asarray(rgb, dtype=np.uint8)
+    else:
+        image_data = np.asarray(Image.open(file_path), dtype=np.uint8)
+    return image_data.flatten()
 
-    def save_to_json(self, filename):
-        code_map_str = {k: v for k, v in self.code_map.items()}
-        data = {
-            'code_map': code_map_str,
-            'compressed_binary': self.compressed_binary.to01(),
-            'shape': self.shape,
-        }
-        with open(filename, 'w') as f:
-            json.dump(data, f)
+def save_compressed_data(compressed_binary, code_map, shape, compressed_path, code_map_path, shape_path):
+    with open(compressed_path, 'wb') as f:
+        compressed_binary.tofile(f)
+    with open(code_map_path, 'wb') as f:
+        pickle.dump(code_map, f)
+    with open(shape_path, 'wb') as f:
+        pickle.dump(shape, f)
 
-    def load_from_json(self, filename):
-        with open(filename, 'r') as f:
-            data = json.load(f)
-        self.compressed_binary = bitarray(data['compressed_binary'])
-        self.code_map = {v: int(k) for k, v in data['code_map'].items()}
-        self.shape = tuple(data['shape'])
+def load_compressed_data(compressed_path, code_map_path, shape_path):
+    with open(compressed_path, 'rb') as f:
+        compressed_binary = bitarray()
+        compressed_binary.fromfile(f)
+    with open(code_map_path, 'rb') as f:
+        code_map = pickle.load(f)
+    with open(shape_path, 'rb') as f:
+        shape = pickle.load(f)
+    return compressed_binary, code_map, shape
 
-    def decompress(self):
-        decompressed_data = []
-        buffer = bitarray()
-        inv_code_map = {v: k for k, v in self.code_map.items()}
-        
-        for bit in self.compressed_binary:
-            buffer.append(bit)
-            if buffer.to01() in inv_code_map:
-                decompressed_data.append(inv_code_map[buffer.to01()])
-                buffer.clear()
-        return np.array(decompressed_data, dtype=np.uint8).reshape(self.shape)
+def save_image(image_array, file_path):
+    image = Image.fromarray(image_array)
+    image.save(file_path)
 
-def compare_file_sizes(json_file_path, image_file_path):
-    json_size = os.path.getsize(json_file_path)
-    image_size = os.path.getsize(image_file_path)
-    reduction = image_size - json_size
-    reduction_percentage = (reduction / image_size) * 100
-    print(f"Original Image Size: {image_size} bytes")
-    print(f"Compressed (JSON) Size: {json_size} bytes")
-    print(f"Reduction: {reduction} bytes")
-    print(f"Reduction Percentage: {reduction_percentage:.2f}%")
+def compare_file_sizes(original_file_path, compressed_file_paths, decompressed_file_path):
+    original_size = os.path.getsize(original_file_path)
+    compressed_total_size = sum(os.path.getsize(f) for f in compressed_file_paths)
+    decompressed_size = os.path.getsize(decompressed_file_path)
+    print(f"Original Image Size: {original_size} bytes")
+    print(f"Total Compressed Data Size (including code map and shape): {compressed_total_size} bytes")
+    print(f"Decompressed Image Size: {decompressed_size} bytes")
 
 def main():
-    image_file_path = 'assets/Nikon-D750-Image-Samples-2.jpg'  # Update this path to your RAW image file
-    compressor = HuffmanCompression(image_file_path)
-    image_data = compressor.process_input()
-    compressor.compress(image_data)
+    image_file_path = 'assets/Nikon-D600-Shotkit-2.NEF'
+    compressed_path = 'compressed_image.bin'
+    code_map_path = 'code_map.bin'
+    shape_path = 'shape.bin'
+    decompressed_image_path = 'decompressed_image.png'
     
-    json_file_path = 'compressed_data.json'
-    compressor.save_to_json(json_file_path)
+    # Compress
+    image_data = process_input(image_file_path)
+    compressed_binary, code_map, shape = compress(image_data)
+    save_compressed_data(compressed_binary, code_map, shape, compressed_path, code_map_path, shape_path)
     
-    decompressor = HuffmanCompression(image_file_path)
-    decompressor.load_from_json(json_file_path)
-    decompressed_image = decompressor.decompress()
+    # Decompress
+    compressed_binary, code_map, shape = load_compressed_data(compressed_path, code_map_path, shape_path)
+    decompressed_data = decompress(compressed_binary, code_map, shape)
+    save_image(decompressed_data, decompressed_image_path)
 
-    decompressed_image_pil = Image.fromarray(decompressed_image)
-    decompressed_image_pil.save('decompressed_image.png')
-
-    compare_file_sizes(json_file_path, image_file_path)
+    # Compare file sizes
+    compare_file_sizes(image_file_path, [compressed_path, code_map_path, shape_path], decompressed_image_path)
 
 if __name__ == "__main__":
     main()
