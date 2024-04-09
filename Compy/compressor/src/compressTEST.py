@@ -1,8 +1,9 @@
 import numpy as np
+import json
 import os
 from PIL import Image
-from queue import PriorityQueue
-import rawpy
+import heapq  # More efficient priority queue management
+from bitarray import bitarray  # For efficient binary data handling
 
 class HuffmanNode:
     def __init__(self, value, freq):
@@ -15,120 +16,92 @@ class HuffmanNode:
         return self.freq < other.freq
 
 def build_huffman_tree(frequencies):
-    pq = PriorityQueue()
-    for value in frequencies:
-        pq.put(HuffmanNode(value, frequencies[value]))
+    heap = [HuffmanNode(value, freq) for value, freq in frequencies.items()]
+    heapq.heapify(heap)
     
-    while pq.qsize() > 1:
-        left = pq.get()
-        right = pq.get()
+    while len(heap) > 1:
+        left = heapq.heappop(heap)
+        right = heapq.heappop(heap)
         merged = HuffmanNode(None, left.freq + right.freq)
         merged.left = left
         merged.right = right
-        pq.put(merged)
+        heapq.heappush(heap, merged)
     
-    return pq.get()
+    return heap[0]
 
-def generate_codes(node, prefix="", code_map={}):
-    if node is not None:
-        if node.value is not None:
-            code_map[node.value] = prefix
-        generate_codes(node.left, prefix + "0", code_map)
-        generate_codes(node.right, prefix + "1", code_map)
+def generate_codes(node):
+    stack = [(node, "")]
+    code_map = {}
+    
+    while stack:
+        node, code = stack.pop()
+        if node is not None:
+            if node.value is not None:
+                code_map[node.value] = code
+            stack.append((node.right, code + "1"))
+            stack.append((node.left, code + "0"))
+    
     return code_map
 
 class HuffmanCompression:
     def __init__(self, file_path):
         self.file_path = file_path
         self.shape = None
-        self.compressed_binary = None
+        self.compressed_binary = bitarray()
         self.huffman_tree = None
         self.code_map = {}
 
     def process_input(self):
-        if self.file_path.lower().endswith(('.arw', '.nef', '.cr2', '.dng')):
-            with rawpy.imread(self.file_path) as raw:
-                rgb = raw.postprocess()
-            image_data = np.asarray(rgb, dtype=np.uint8)
-        else:
-            image_data = np.asarray(Image.open(self.file_path), dtype=np.uint8)
-        
+        image_data = np.asarray(Image.open(self.file_path), dtype=np.uint8)
         self.shape = image_data.shape
         return image_data.flatten()
 
     def compress(self, image_data):
         freqs = np.bincount(image_data)
         frequencies = {byte: freq for byte, freq in enumerate(freqs) if freq > 0}
-
+        
         self.huffman_tree = build_huffman_tree(frequencies)
         self.code_map = generate_codes(self.huffman_tree)
-
-        compressed = ''.join(self.code_map[byte] for byte in image_data)
-        self.compressed_binary = compressed
-
-    def save_to_binary(self, filename):
-        def serialize_tree(node):
-            if node is None:
-                return ""
-            if node.value is not None:
-                return "1" + format(node.value, '08b')  # Assuming byte values for simplicity
-            return "0" + serialize_tree(node.left) + serialize_tree(node.right)
-
-        serialized_tree = serialize_tree(self.huffman_tree)
-        total_length = len(serialized_tree) + len(self.compressed_binary)
-        padding_length = 8 - (total_length % 8)
-        padding = '0' * padding_length
-        full_binary_string = serialized_tree + self.compressed_binary + padding
-        byte_array = bytearray(int(full_binary_string[i:i+8], 2) for i in range(0, len(full_binary_string), 8))
-
-        with open(filename, 'wb') as f:
-            f.write(byte_array)
-
-    def load_from_binary(self, filename):
-        with open(filename, 'rb') as f:
-            byte_array = f.read()
         
-        binary_string = ''.join(format(byte, '08b') for byte in byte_array)
-        
-        def reconstruct_tree(binary_tree_string):
-            if binary_tree_string[0] == '1':
-                value = int(binary_tree_string[1:9], 2)
-                return HuffmanNode(value, 0), binary_tree_string[9:]
-            else:
-                left_node, rest_binary_string = reconstruct_tree(binary_tree_string[1:])
-                right_node, final_rest_binary_string = reconstruct_tree(rest_binary_string)
-                parent_node = HuffmanNode(None, left_node.freq + right_node.freq)
-                parent_node.left = left_node
-                parent_node.right = right_node
-                return parent_node, final_rest_binary_string
-        
-        self.huffman_tree, compressed_data_with_padding = reconstruct_tree(binary_string)
-        padding_length = 0
-        while compressed_data_with_padding.endswith('0'):
-            padding_length += 1
-            compressed_data_with_padding = compressed_data_with_padding[:-1]
-            if padding_length == 8:
-                break
-        
-        self.compressed_binary = compressed_data_with_padding[:-padding_length]
+        for byte in image_data:
+            self.compressed_binary.extend(self.code_map[byte])
+
+    def save_to_json(self, filename):
+        code_map_str = {k: v for k, v in self.code_map.items()}
+        data = {
+            'code_map': code_map_str,
+            'compressed_binary': self.compressed_binary.to01(),
+            'shape': self.shape,
+        }
+        with open(filename, 'w') as f:
+            json.dump(data, f)
+
+    def load_from_json(self, filename):
+        with open(filename, 'r') as f:
+            data = json.load(f)
+        self.compressed_binary = bitarray(data['compressed_binary'])
+        self.code_map = {v: int(k) for k, v in data['code_map'].items()}
+        self.shape = tuple(data['shape'])
 
     def decompress(self):
         decompressed_data = []
-        buffer = ""
+        buffer = bitarray()
+        inv_code_map = {v: k for k, v in self.code_map.items()}
+        
         for bit in self.compressed_binary:
-            buffer += bit
-            if buffer in self.code_map:
-                decompressed_data.append(self.code_map[buffer])
-                buffer = ""
+            buffer.append(bit)
+            if buffer.to01() in inv_code_map:
+                decompressed_data.append(inv_code_map[buffer.to01()])
+                buffer.clear()
         return np.array(decompressed_data, dtype=np.uint8).reshape(self.shape)
 
-def compare_file_sizes(binary_file_path, image_file_path):
-    binary_size = os.path.getsize(binary_file_path)
+def compare_file_sizes(json_file_path, image_file_path):
+    json_size = os.path.getsize(json_file_path)
     image_size = os.path.getsize(image_file_path)
-    reduction = image_size - binary_size
+    reduction = image_size - json_size
     reduction_percentage = (reduction / image_size) * 100
     print(f"Original Image Size: {image_size} bytes")
-    print(f"Compressed (Binary) Size: {binary_size} bytes")
+    print(f"Compressed (JSON) Size: {json_size} bytes")
     print(f"Reduction: {reduction} bytes")
     print(f"Reduction Percentage: {reduction_percentage:.2f}%")
 
@@ -138,17 +111,17 @@ def main():
     image_data = compressor.process_input()
     compressor.compress(image_data)
     
-    binary_file_path = 'compressed_data.bin'
-    compressor.save_to_binary(binary_file_path)
+    json_file_path = 'compressed_data.json'
+    compressor.save_to_json(json_file_path)
     
     decompressor = HuffmanCompression(image_file_path)
-    decompressor.load_from_binary(binary_file_path)
+    decompressor.load_from_json(json_file_path)
     decompressed_image = decompressor.decompress()
 
     decompressed_image_pil = Image.fromarray(decompressed_image)
     decompressed_image_pil.save('decompressed_image.png')
 
-    compare_file_sizes(binary_file_path, image_file_path)
+    compare_file_sizes(json_file_path, image_file_path)
 
 if __name__ == "__main__":
     main()
