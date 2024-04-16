@@ -3,4 +3,3 @@ pillow
 numpy
 django
 bitarray
-imageio
