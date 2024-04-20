@@ -1,5 +1,7 @@
 from django.shortcuts import render
 
+
+# Create your views here.
 from django.http import HttpResponse
 from .models import RawImage, CompressedImage
 
@@ -37,4 +39,3 @@ def upload_compress_view(request):
     algorithm_choices = CompressedImage.ALGORITHM_CHOICES
     
     return render(request, 'compressor/upload.html')
-
