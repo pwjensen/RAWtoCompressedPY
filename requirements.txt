@@ -1,4 +1,5 @@
 rawpy
 pillow
 numpy
-argparse
+django
+bitarray
