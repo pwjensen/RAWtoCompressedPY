@@ -37,19 +37,11 @@ my_image_compressor/
 ├── src/
 │   ├── __init__.py
 │   ├── compressor.py
-│   ├── reader.py
-│   └── utils.py
-│
-├── tests/
-│   ├── __init__.py
-│   ├── test_compressor.py
-│   └── test_reader.py
 │
 ├── docs/
 │   └── usage.md
 │
 ├── requirements.txt
-├── setup.py
 └── README.md
 ```
 
