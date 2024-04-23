@@ -6,41 +6,24 @@ class RawImage(models.Model):
     # Store the original image
     image = models.ImageField(upload_to='assets/originals/')
     uploaded_at = models.DateTimeField(auto_now_add=True)
+    file_size = models.PositiveIntegerField(default=0)
 
-class CompressedImage(models.Model):
-
-    # Encoding formats available to the user 
-    HUFFMAN = 'Huffman'
-    LZ77 = 'LZ77'
-    RLE = 'RLE'
-
-    ENCODER_CHOICES = {
-        (HUFFMAN, 'Huffman Encoder'),
-        (LZ77, 'LZ77 Encoder'),
-        (RLE, 'RLE Encoder')
-
-    }
-
-=======
-    file_size = models.PositiveIntegerField(default=0)  # Stores file size in bytes
-
-    # when an image is saved this automatically populates its file_size 
+    # autopopulate file size attr when saving the image 
     def save(self, *args, **kwargs): 
-        self.file_size = self.image.file.size 
+        if not self.id:
+            self.file_size = self.image.file.size # 
         super(RawImage, self).save(*args, **kwargs)
 
 class CompressedImage(models.Model):
-    # Foreign Key to the original image
+    # foreing Key to the original image
     original = models.ForeignKey(RawImage, on_delete=models.CASCADE, related_name='compressed_images')
-    # Store the compressed image
+    # store the compressed image
     compressed_image = models.ImageField(upload_to='images/compressed/')
-    # Algorithm used for compression
-    algorithm = models.CharField(max_length=50, choices=ENCODER_CHOICES)
-    # Compression metrics like size reduction, quality metrics, etc.
-    size_reduction = models.FloatField()
-    compressed_at = models.DateTimeField(auto_now_add=True)
-=======
+
+    # compression metrics 
+    size_reduction = models.FloatField() # % reduction of file size after compression 
     binary_image = models.TextField(default=0) # binary of huffman encoded image
-    huffman_guide = models.TextField(default=0) # stores the conversion b/w raw val and huffman encoding
-    file_size = models.PositiveIntegerField(default=0)  # Stores file size in bytes
-    compressed_at = models.DateTimeField(auto_now_add=True)
+    huffman_codes = models.TextField(default=0) # stores the conversion b/w raw val and huffman encoding
+    file_size = models.PositiveIntegerField(default=0)  # stores file size in bytes
+    compressed_at = models.DateTimeField(auto_now_add=True) # time of compression 
+    

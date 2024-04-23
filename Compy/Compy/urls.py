@@ -16,8 +16,12 @@ Including another URLconf
 """
 
 from django.contrib import admin
-from django.urls import path
+from django.urls import path, include 
+from compressor.views import upload_image, compressed_image_detail
 
 urlpatterns = [
     path("admin/", admin.site.urls),
+    #path('', include('compressor')),
+    path('upload_raw_image/', upload_image, name='upload_raw'),
+    path('compressed/<int:pk>/', compressed_image_detail, name='compressed_image_detail'),
 ]

@@ -6,11 +6,11 @@ from collections import namedtuple
 import json
 
 class HuffmanCompressor:
-    def __init__(self, img_loc):
+    def __init__(self, img_file):
         # defining a node object
         self.Node = namedtuple('node', ['freq', 'pixels', 'left', 'right'])
 
-        self.image = Image.open(img_loc)
+        self.image = Image.open(img_file)
         print("loaded image...")
         self.flat_img = np.array(self.image, dtype=np.uint8).flatten()
         print("flattened image...")
@@ -24,6 +24,15 @@ class HuffmanCompressor:
         #self.print_huffman_tree(self.huffman_tree)
         self.compressed_img = self.huffman_encode()
         print("\nImage Compression Successful!")
+
+        self.raw_size = self.raw_img_size()
+        self.compressed_size = self.compressed_img_size()
+        self.reduction = (1 - (self.compressed_size/self.raw_size)) * 100
+
+        print(f"[Original: {self.raw_size} bytes]")
+        print(f"[Compressed (with codes): {self.compressed_size :.2f} bytes]")
+        print(f"[Reduction: {self.reduction :.2f}%]")
+
 
     def count_frequency(self):
         freq = np.zeros(256, dtype=np.int32)
@@ -87,6 +96,16 @@ class HuffmanCompressor:
                 decoded_pixels.append(int(pixel_map[cur]))
                 cur = ""  # reset to build next code
         return np.array(decoded_pixels, dtype=np.uint8).reshape(self.image.size[::-1])
+    
+    def raw_img_size(self):
+        if self.image: 
+            return len(self.flat_img)
+        
+    def compressed_img_size(self):
+        if self.compressed_img:
+            size = len(self.compressed_img) / 8
+
+            return size
 
 # test with default image 
 if __name__ == '__main__':
