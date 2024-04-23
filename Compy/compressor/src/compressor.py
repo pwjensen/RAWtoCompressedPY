@@ -15,15 +15,18 @@ class HuffmanCompressor:
         self.flat_img = np.array(self.image, dtype=np.uint8).flatten()
         print("flattened image...")
         self.freq = self.count_frequency()
-        print("counted frequencies...")
+        print("counted frequencies...", self.freq)
         self.huffman_tree = self.make_huffman_tree()
-        print("created huffman tree...")
+        print("created huffman tree...", self.huffman_tree)
         self.huffman_codes = {}
         self.make_huffman_codes(self.huffman_tree)
-        print("generated huffman codes...")
+        print("generated huffman codes...", self.huffman_codes)
         #self.print_huffman_tree(self.huffman_tree)
         self.compressed_img = self.huffman_encode()
         print("\nImage Compression Successful!")
+        self.save_compressed_img("assets/compressed.json")
+        #self.decoded_image = self.load_compressed_img("assets/compressed.json")
+        #self.decode_image(self.decoded_image)
 
     def count_frequency(self):
         freq = np.zeros(256, dtype=np.int32)
