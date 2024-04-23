@@ -1,16 +1,45 @@
 <!DOCTYPE html>
 <html lang="en">
-    <head>
-        <meta charset="UTF-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>Image Compressor</title>
-    </head>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Image Compressor</title>
+    <style>
+        body, html {
+            height: 100%; /* Full height */
+            margin: 0; /* Remove default margin */
+            display: flex;
+            justify-content: center; /* Center content horizontally */
+            align-items: center; /* Center content vertically */
+            font-family: Arial, sans-serif;
+        }
+        h1 {
+            color: navy;
+        }
+        form {
+            margin-top: 20px;
+        }
+        button {
+            background-color: blue;
+            color: white;
+            padding: 10px 15px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer; /* Changes the mouse cursor to a pointer when over the button */
+        }
+        button:hover {
+            background-color: darkblue;
+        }
+    </style>
+</head>
 <body>
-    <h1>Upload an Image</h1>
-    <form method="post" enctype="multipart/form-data">
-        {% csrf_token %}
-        {{ form.as_p }}
-        <button type="submit">Upload Image</button>
-    </form>
+    <div class="container">
+        <h1>Upload an Image</h1>
+        <form method="post" enctype="multipart/form-data">
+            {% csrf_token %}
+            {{ form.as_p }}
+            <button type="submit">Upload Image</button>
+        </form>
+    </div>
 </body>
 </html>
