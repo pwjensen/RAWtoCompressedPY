@@ -19,11 +19,11 @@ class CompressedImage(models.Model):
     original = models.ForeignKey(RawImage, on_delete=models.CASCADE, related_name='compressed_images')
     # store the compressed image
     compressed_image = models.ImageField(upload_to='images/compressed/')
-
+    file_loc = models.TextField(null=True,max_length=200)
     # compression metrics 
-    size_reduction = models.FloatField() # % reduction of file size after compression 
+    size_reduction = models.TextField(null=True,max_length=200) # % reduction of file size after compression 
     binary_image = models.TextField(default=0) # binary of huffman encoded image
     huffman_codes = models.TextField(default=0) # stores the conversion b/w raw val and huffman encoding
     file_size = models.PositiveIntegerField(default=0)  # stores file size in bytes
+    compressed_size = models.PositiveIntegerField(default=0)
     compressed_at = models.DateTimeField(auto_now_add=True) # time of compression 
-    
