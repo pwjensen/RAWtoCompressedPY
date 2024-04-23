@@ -1,0 +1,61 @@
+body {
+    font-family: Arial, sans-serif;
+    background-color: #f4f4f9;
+    margin: 0;
+    padding: 20px;
+    color: #333;
+}
+
+.container {
+    width: 80%;
+    margin: 0 auto;
+    background-color: #fff;
+    padding: 20px;
+    box-shadow: 0 0 10px rgba(0,0,0,0.1);
+}
+
+h1 {
+    text-align: center;
+}
+
+.upload-section {
+    margin: 20px 0;
+}
+
+.upload-label {
+    display: block;
+    margin-bottom: 10px;
+}
+
+#imageUpload {
+    width: 100%;
+    padding: 10px;
+    border: 1px solid #ccc;
+}
+
+#compressBtn {
+    display: block;
+    width: 100%;
+    padding: 10px 20px;
+    background-color: #007bff;
+    color: white;
+    border: none;
+    cursor: pointer;
+    font-size: 16px;
+}
+
+#compressBtn:hover {
+    background-color: #0056b3;
+}
+
+.preview-section {
+    margin-top: 20px;
+    padding: 10px;
+    border: 1px solid #ccc;
+    text-align: center;
+}
+
+.preview-section img {
+    max-width: 100%;
+    height: auto;
+}
