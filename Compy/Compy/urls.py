@@ -16,8 +16,14 @@ Including another URLconf
 """
 
 from django.contrib import admin
-from django.urls import path
+from django.urls import path, include 
+from compressor.views import upload_image, compressed_image_detail, decompress_and_display
 
 urlpatterns = [
     path("admin/", admin.site.urls),
+
+    path('', upload_image, name='upload_raw'),
+    path('compressed/<int:pk>/', compressed_image_detail, name='compressed_image_detail'),
+    path('decompress/<int:pk>/', decompress_and_display, name='decompress_display_image'),
+
 ]

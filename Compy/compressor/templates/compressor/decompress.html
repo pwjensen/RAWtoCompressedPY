@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Decompressed Image</title>
+</head>
+<body>
+    <h1>Decompressed Image</h1>
+
+    {% if image_url %}
+        <img src="{{ image_url }}" alt="Decompressed Image">
+    {% else %}
+        <p>No image available</p>
+    {% endif %}
+
+    <!-- Link to go back to the upload page or home page -->
+    <a href="{% url 'upload_image' %}">Upload Another Image</a>
+</body>
+</html>
