@@ -2,7 +2,7 @@
 
 ## Installation
 
-1. Clone repo: (`git clone `)
+1. Clone repo: (`git clone https://github.com/pwjensen/RAWtoCompressedPY.git`)
 2. Install requirements (`pip install -r requirements.txt`)
 3. Setting up Django
     - Navigate to Compy(`cd Compy`)
